@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>房號留言板 | {{ room.room_number }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+    <header class="bg-white shadow-md sticky top-0 z-10">
+        <nav class="flex justify-between items-center max-w-7xl mx-auto p-4">
+            <div class="text-xl font-bold text-purple-600">{{ room.room_number|default:"未分配" }} 房號</div>
+            <div class="flex space-x-4">
+                <a href="{% url 'chores:home' %}" class="text-gray-600 hover:text-purple-600">主頁</a>
+                <a href="{% url 'chores:list' %}" class="text-gray-600 hover:text-purple-600">家務</a>
+                <a href="{% url 'members:list' %}" class="text-gray-600 hover:text-purple-600">成員</a>
+                <a href="{% url 'chats:list' %}" class="text-purple-600 font-semibold border-b-2 border-purple-600">留言板</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 md:p-8">
+        {% if no_room_assigned %}
+            <div class="text-center p-10 bg-red-100 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold text-red-700">無法顯示留言板</h2>
+                <p class="text-red-500 mt-2">請先設定房號以使用留言板功能。</p>
+            </div>
+            {% return %}
+        {% endif %}
+
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-extrabold text-gray-900">房號留言板</h1>
+            <a href="{% url 'chats:create' %}" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-lg shadow-md hover:bg-purple-700 transition">
+                <i class="fas fa-pen-fancy mr-1"></i> 發布新文章 (F-5.3)
+            </a>
+        </div>
+
+        <section class="space-y-4">
+            {% for article in articles %}
+                <div class="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition duration-150 border-l-4 border-purple-400">
+                    <a href="{% url 'chats:detail' pk=article.id %}" class="block">
+                        <h2 class="text-xl font-bold text-gray-800 hover:text-purple-600 transition">
+                            {{ article.title|default:"(無標題)" }}
+                        </h2>
+                        
+                        <p class="text-gray-600 mt-2 line-clamp-2">
+                            {{ article.content|truncatechars:150 }}
+                        </p>
+                        
+                        <div class="flex justify-between items-center mt-3 text-sm text-gray-500 border-t pt-3">
+                            <div>
+                                <span class="mr-3">
+                                    <i class="far fa-comment-alt text-purple-400"></i> 
+                                    {{ article.replies.count }} 則留言
+                                </span>
+                                <span class="text-gray-600 font-medium">
+                                    <i class="fas fa-user-edit mr-1"></i> {{ article.author.username }}
+                                </span>
+                            </div>
+                            
+                            <span class="text-xs">
+                                <i class="fas fa-clock mr-1"></i> {{ article.created_at|date:"Y/m/d H:i" }}
+                            </span>
+                        </div>
+                    </a>
+                </div>
+            {% empty %}
+                <div class="text-center p-10 bg-white rounded-lg shadow-md">
+                    <i class="fas fa-box-open text-6xl text-gray-300"></i>
+                    <h3 class="text-xl font-semibold text-gray-600 mt-4">留言板空空如也</h3>
+                    <p class="text-gray-500 mt-2">成為第一個發布房號通知或討論話題的人吧！</p>
+                    <a href="{% url 'chats:create' %}" class="mt-4 inline-block px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                        發布文章
+                    </a>
+                </div>
+            {% endfor %}
+        </section>
+
+    </main>
+</body>
+</html>

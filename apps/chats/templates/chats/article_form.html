@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if article %}編輯文章{% else %}發布新文章{% endif %} | 留言板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+    <header class="bg-white shadow-md sticky top-0 z-10">
+        <nav class="flex justify-between items-center max-w-7xl mx-auto p-4">
+            <div class="text-xl font-bold text-purple-600">{{ room.room_number|default:"未分配" }} 房號</div>
+            <div class="flex space-x-4">
+                <a href="{% url 'chats:list' %}" class="text-purple-600 font-semibold border-b-2 border-purple-600">留言板</a>
+                <a href="{% url 'chores:list' %}" class="text-gray-600 hover:text-purple-600">家務</a>
+                <a href="{% url 'members:list' %}" class="text-gray-600 hover:text-purple-600">成員</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="max-w-3xl mx-auto p-4 md:p-8">
+        
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-lg border-t-4 border-purple-500">
+            <h1 class="text-3xl font-extrabold text-gray-900 mb-6">
+                {% if object %}
+                    <i class="fas fa-edit mr-2 text-purple-600"></i> 編輯文章：{{ object.title|default:"(無標題)" }}
+                {% else %}
+                    <i class="fas fa-pen-fancy mr-2 text-purple-600"></i> 發布新文章
+                {% endif %}
+            </h1>
+
+            <form method="POST" class="space-y-6">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
+                        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                    </div>
+                {% endif %}
+
+                <div>
+                    <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        {{ form.title.label }}
+                    </label>
+                    {{ form.title }}
+                    {% for error in form.title.errors %}
+                        <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
+                    {% endfor %}
+                </div>
+
+                <div>
+                    <label for="{{ form.content.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        {{ form.content.label }}
+                    </label>
+                    {{ form.content }}
+                    {% for error in form.content.errors %}
+                        <p class="text-red-500 text-xs italic mt-1">{{ error }}</p>
+                    {% endfor %}
+                </div>
+                
+                <div class="flex justify-between items-center pt-4 border-t">
+                    <a href="{% url 'chats:list' %}" class="text-gray-500 hover:text-gray-700">
+                        取消
+                    </a>
+                    
+                    <button type="submit" class="px-6 py-2 bg-purple-600 text-white font-medium rounded-lg shadow-md hover:bg-purple-700 transition">
+                        {% if article %}
+                            <i class="fas fa-save mr-1"></i> 儲存變更
+                        {% else %}
+                            <i class="fas fa-paper-plane mr-1"></i> 發布文章
+                        {% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+    </main>
+</body>
+</html>

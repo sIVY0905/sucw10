@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>房號管理 | 創建與加入</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <main class="max-w-4xl mx-auto p-4 md:p-8">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-8">
+            <i class="fas fa-home text-indigo-500 mr-2"></i> 房號管理中心
+        </h1>
+
+        <section class="mb-10 p-6 bg-white rounded-xl shadow-lg">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">您的房號 (共 {{ user_rooms|length }} 個)</h2>
+            <div class="space-y-4">
+                {% for room in user_rooms %}
+                <div class="p-4 border rounded-lg flex justify-between items-center {% if room.id == current_room_id %}bg-green-50 border-green-400{% else %}hover:bg-gray-50{% endif %} transition">
+                    <div>
+                        <p class="text-lg font-semibold text-gray-800">
+                            房號代碼: {{ room.room_number }}
+                            {% if room.id == current_room_id %}
+                                <span class="ml-2 text-xs font-bold text-green-700 bg-green-200 px-2 py-1 rounded-full"><i class="fas fa-check-circle"></i> 當前工作</span>
+                            {% endif %}
+                        </p>
+                        <p class="text-sm text-gray-500 mt-1">{{ room.members.count }} 位成員</p>
+                    </div>
+                    {% if room.id != current_room_id %}
+                        <a href="{% url 'rooms:select' room_id=room.id %}" class="px-3 py-1 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition">
+                            <i class="fas fa-sync-alt"></i> 切換
+                        </a>
+                    {% else %}
+                        <a href="{% url 'chores:home' %}" class="px-3 py-1 bg-indigo-500 text-white rounded-lg opacity-50 cursor-not-allowed">
+                            已選定
+                        </a>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <p class="text-gray-500 p-4 bg-gray-50 rounded-lg text-center">您尚未加入任何房號。請創建或加入一個房號開始。</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <section class="p-6 bg-white rounded-xl shadow-lg border-t-4 border-indigo-400">
+                <h2 class="text-xl font-bold text-indigo-600 mb-4">創建新房號</h2>
+                <form method="POST" action="{% url 'rooms:create' %}" class="space-y-4">
+                    {% csrf_token %}
+                    {{ create_form.as_p }}
+                    <button type="submit" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"><i class="fas fa-plus-circle"></i> 創建並加入</button>
+                </form>
+            </section>
+
+            <section class="p-6 bg-white rounded-xl shadow-lg border-t-4 border-purple-400">
+                <h2 class="text-xl font-bold text-purple-600 mb-4">加入現有房號</h2>
+                <form method="POST" action="{% url 'rooms:join' %}" class="space-y-4">
+                    {% csrf_token %}
+                    {{ join_form.as_p }}
+                    <button type="submit" class="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"><i class="fas fa-door-open"></i> 驗證並加入</button>
+                </form>
+            </section>
+        </div>
+    </main>
+</body>
+</html>

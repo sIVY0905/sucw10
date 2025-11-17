@@ -1,0 +1,97 @@
+{% extends "core/base.html" %}
+
+{% block title %}成員檔案：{{ target_member.username }}{% endblock %}
+
+{% block content %}
+{% if no_room_assigned %}
+    <div class="text-center p-10 bg-red-100 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold text-red-700">無法顯示成員資訊</h2>
+        <p class="text-red-500 mt-2">您尚未加入房號，請先設定房號以檢視室友資訊。</p>
+    </div>
+{% else %}
+<div class="bg-white p-6 md:p-8 rounded-xl shadow-lg mb-8">
+    <div class="flex items-center space-x-6">
+        <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center text-4xl text-indigo-600 font-bold">
+            {{ target_member.username|slice:"1"|upper }}
+        </div>
+        <div>
+            <h1 class="text-3xl font-extrabold text-gray-900">{{ target_member.username }}</h1>
+            <p class="text-gray-500">
+                {% if target_member.id == request.user.id %}
+                    (這是您自己)
+                {% else %}
+                    {{ target_member.email }}
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <hr class="my-6">
+
+    <div class="grid grid-cols-3 gap-4 text-center">
+        <div class="p-4 bg-green-50 rounded-lg">
+            <p class="text-3xl font-bold text-green-600">{{ completed_chores_count }}</p>
+            <p class="text-sm text-gray-500 mt-1">家務完成總數</p>
+        </div>
+        <div class="p-4 bg-indigo-50 rounded-lg">
+            <p class="text-3xl font-bold text-indigo-600">{{ articles_count }}</p>
+            <p class="text-sm text-gray-500 mt-1">發布文章總數</p>
+        </div>
+        <div class="p-4 bg-yellow-50 rounded-lg">
+            <p class="text-3xl font-bold text-yellow-600">{{ replies_count }}</p>
+            <p class="text-sm text-gray-500 mt-1">發布留言總數</p>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <section class="bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold text-indigo-600 mb-4 border-b pb-2">最新文章 ({{ member_articles|length }} 篇)</h2>
+        <div class="space-y-4">
+            {% for article in member_articles %}
+                <div class="p-3 border rounded-lg hover:bg-gray-50 transition">
+                    <a href="{% url 'chats:detail' pk=article.id %}" class="block">
+                        <p class="text-lg font-semibold text-gray-800 truncate">{{ article.title|default:"(無標題文章)" }}</p>
+                        <p class="text-sm text-gray-500 mt-1">{{ article.content|truncatechars:50 }}</p>
+                        <p class="text-xs text-gray-400 mt-1">
+                            <i class="fas fa-clock"></i> {{ article.created_at|date:"Y/m/d H:i" }}
+                        </p>
+                    </a>
+                </div>
+            {% empty %}
+                <p class="text-gray-500 p-4 bg-gray-50 rounded-lg">該成員尚未發布任何文章。</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold text-yellow-600 mb-4 border-b pb-2">最新留言 ({{ member_replies|length }} 則)</h2>
+        <div class="space-y-4">
+            {% for reply in member_replies %}
+                <div class="p-3 border rounded-lg hover:bg-gray-50 transition border-l-4 border-yellow-300">
+                    <p class="text-sm text-gray-800 font-medium">
+                        <i class="fas fa-comment-dots text-yellow-500 mr-2"></i>
+                        {{ reply.content|truncatechars:70 }}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1 ml-6">
+                        回覆給：
+                        <a href="{% url 'chats:detail' pk=reply.parent.id %}" class="text-indigo-500 hover:underline">
+                            "{{ reply.parent.title|default:reply.parent.content|truncatechars:20 }}"
+                        </a>
+                    </p>
+                    <p class="text-xs text-gray-400 mt-1 ml-6">
+                        <i class="fas fa-clock"></i> {{ reply.created_at|date:"Y/m/d H:i" }}
+                    </p>
+                </div>
+            {% empty %}
+                <p class="text-gray-500 p-4 bg-gray-50 rounded-lg">該成員尚未發布任何留言。</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<div class="mt-8 text-center">
+    <a href="{% url 'members:list' %}" class="text-indigo-600 hover:underline"><i class="fas fa-arrow-left mr-1"></i> 返回成員列表</a>
+</div>
+{% endif %}
+{% endblock %}

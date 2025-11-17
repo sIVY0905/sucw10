@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load socialaccount %}
+
+{% block title %}註冊新帳號{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gray-100 font-sans">
+    <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-2xl">
+        <h1 class="text-3xl font-extrabold text-gray-900 text-center mb-6">
+            <i class="fas fa-user-plus text-indigo-600 mr-2"></i> 註冊新帳號
+        </h1>
+
+        <!-- Google 註冊按鈕 -->
+        <div class="mb-4">
+            <a href="{% provider_login_url 'google' %}" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+                <i class="fab fa-google mr-2"></i> 使用 Google 註冊
+            </a>
+        </div>
+
+        <div class="text-center my-4">
+            <span class="text-gray-500">或使用 Email 註冊</span>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+
+            <button type="submit" class="w-full mt-6 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition">
+                <i class="fas fa-check-circle mr-1"></i> 完成註冊
+            </button>
+        </form>
+
+        <div class="mt-6 text-center text-sm">
+            <p class="text-gray-600">
+                已有帳號？ 
+                <a href="{% url 'users:login' %}" class="text-indigo-600 hover:underline font-medium">直接登入</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

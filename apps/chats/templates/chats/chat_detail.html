@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ article.title|default:"無標題文章" }} | 留言板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+    <header class="bg-white shadow-md sticky top-0 z-10">
+        <nav class="flex justify-between items-center max-w-7xl mx-auto p-4">
+            <div class="text-xl font-bold text-purple-600">{{ article.room.room_number }} 房號</div>
+            <div class="flex space-x-4">
+                <a href="{% url 'chores:list' %}" class="text-gray-600 hover:text-purple-600">家務</a>
+                <a href="{% url 'members:list' %}" class="text-gray-600 hover:text-purple-600">成員</a>
+                <a href="{% url 'chats:list' %}" class="text-purple-600 font-semibold border-b-2 border-purple-600">留言板</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 md:p-8">
+        
+        <a href="{% url 'chats:list' %}" class="text-purple-600 hover:underline mb-4 inline-block">
+            <i class="fas fa-arrow-left mr-1"></i> 返回文章列表
+        </a>
+
+        <section class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-purple-500 mb-8">
+            <h1 class="text-3xl font-extrabold text-gray-900 mb-2">
+                {{ article.title|default:"(無標題文章)" }}
+            </h1>
+            
+            <div class="flex justify-between items-center text-sm text-gray-500 mb-4 pb-2 border-b">
+                <p>
+                    作者: <a href="{% url 'members:detail' pk=article.author.id %}" class="text-purple-600 hover:underline font-medium">{{ article.author.username }}</a>
+                </p>
+                <p>
+                    發布於: {{ article.created_at|date:"Y/m/d H:i" }} 
+                    {% if article.created_at != article.updated_at %}
+                        (已編輯)
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="prose max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {{ article.content }}
+            </div>
+
+            {% if article.author == request.user %}
+            <div class="mt-6 pt-4 border-t flex space-x-3">
+                <a href="{% url 'chats:update' pk=article.id %}" class="text-sm px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                    <i class="fas fa-edit mr-1"></i> 編輯
+                </a>
+                <a href="{% url 'chats:delete' pk=article.id %}" class="text-sm px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
+                    <i class="fas fa-trash-alt mr-1"></i> 刪除
+                </a>
+            </div>
+            {% endif %}
+        </section>
+
+        <section class="bg-white p-6 rounded-xl shadow-lg mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">發表留言</h2>
+            
+            <form method="POST" action="{% url 'chats:reply' pk=article.id %}" class="space-y-4">
+                {% csrf_token %}
+                
+                {{ reply_form.content.label_tag }}
+                {{ reply_form.content }}
+                
+                {% if reply_form.content.errors %}
+                    <div class="text-red-500 text-sm">
+                        {% for error in reply_form.content.errors %}{{ error }}{% endfor %}
+                    </div>
+                {% endif %}
+
+                <button type="submit" class="w-full px-4 py-2 bg-purple-600 text-white font-medium rounded-lg shadow-md hover:bg-purple-700 transition">
+                    <i class="fas fa-paper-plane mr-1"></i> 提交留言
+                </button>
+            </form>
+            
+            </section>
+
+        <section class="space-y-6">
+            <h2 class="text-2xl font-bold text-gray-800 border-b pb-2">留言 ({{ comments|length }} 則)</h2>
+
+            {% for comment in comments %}
+            <div class="bg-white p-5 rounded-xl shadow-md border-l-4 border-yellow-400">
+                <div class="flex justify-between items-center mb-2">
+                    <p class="font-bold text-gray-800">
+                        <i class="fas fa-user text-yellow-500 mr-2"></i>
+                        <a href="{% url 'members:detail' pk=comment.author.id %}" class="hover:underline">
+                            {{ comment.author.username }}
+                        </a>
+                    </p>
+                    <p class="text-xs text-gray-500">
+                        {{ comment.created_at|date:"Y/m/d H:i" }}
+                        </p>
+                </div>
+                
+                <div class="text-gray-700 pl-6 border-l-2 border-gray-200 ml-2 whitespace-pre-wrap">
+                    {{ comment.content }}
+                </div>
+            </div>
+            {% empty %}
+                <div class="text-center p-6 bg-white rounded-lg shadow-md text-gray-500">
+                    目前沒有留言，快來搶第一個沙發吧！
+                </div>
+            {% endfor %}
+        </section>
+        
+    </main>
+</body>
+</html>
