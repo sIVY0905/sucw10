@@ -62,7 +62,7 @@ INSTALLED_APPS = [
 
 ]
 
-SITE_ID = 1
+# SITE_ID = 1
 # 設定自定義使用者模型
 AUTH_USER_MODEL = 'users.User' # 假設您的 User 模型命名為 User
 
