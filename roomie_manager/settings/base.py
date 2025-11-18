@@ -62,7 +62,7 @@ INSTALLED_APPS = [
 
 ]
 
-# SITE_ID = 1
+SITE_ID = 1
 # 設定自定義使用者模型
 AUTH_USER_MODEL = 'users.User' # 假設您的 User 模型命名為 User
 
@@ -109,11 +109,7 @@ WSGI_APPLICATION = 'roomie_manager.wsgi.application'
 #     }
 # }
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=config('DATABASE_URL')
-    )
-}
+
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
@@ -197,11 +193,6 @@ SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True  # 自動連結相同 ema
 # Google OAuth 設定：指定要取得的資訊範圍
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
-        'APP': {
-            'client_id': os.getenv('GOOGLE_CLIENT_ID'),
-            'secret': os.getenv('GOOGLE_SECRET'),
-            'key': ''
-        },
         'SCOPE': [
             'profile',  # 取得個人資料（名字、頭像等）
             'email',    # 取得 email
