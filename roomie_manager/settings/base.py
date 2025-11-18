@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'apps.chores',
     'apps.chats',
     'apps.core',
+    'apps.accounts',
     'apps.members',
 
     # allauth 相關
@@ -176,7 +177,7 @@ LOGIN_REDIRECT_URL = '/'
 # 登出後導向的頁面 (例如登入頁面)
 LOGOUT_REDIRECT_URL = '/auth/login/'
 # 登入頁面的路徑 (用於 LoginRequiredMixin)
-LOGIN_URL = '/auth/login/'
+# LOGIN_URL = '/auth/login/'
 
 
 AUTHENTICATION_BACKENDS = [
