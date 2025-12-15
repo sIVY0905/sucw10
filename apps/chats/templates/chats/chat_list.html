@@ -1,35 +1,29 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>房號留言板 | {{ room.room_number }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-</head>
-<body class="bg-gray-50 min-h-screen font-sans">
+{% extends "core/base.html" %}
 
-    <header class="bg-white shadow-md sticky top-0 z-10">
-        <nav class="flex justify-between items-center max-w-7xl mx-auto p-4">
-            <div class="text-xl font-bold text-purple-600">{{ room.room_number|default:"未分配" }} 房號</div>
-            <div class="flex space-x-4">
-                <a href="{% url 'chores:home' %}" class="text-gray-600 hover:text-purple-600">主頁</a>
-                <a href="{% url 'chores:list' %}" class="text-gray-600 hover:text-purple-600">家務</a>
-                <a href="{% url 'members:list' %}" class="text-gray-600 hover:text-purple-600">成員</a>
-                <a href="{% url 'chats:list' %}" class="text-purple-600 font-semibold border-b-2 border-purple-600">留言板</a>
-            </div>
-        </nav>
-    </header>
+{% block title %}房號留言板 | {{ room.room_number }}{% endblock %}
 
-    <main class="max-w-4xl mx-auto p-4 md:p-8">
-        {% if no_room_assigned %}
-            <div class="text-center p-10 bg-red-100 rounded-lg shadow-md">
-                <h2 class="text-2xl font-bold text-red-700">無法顯示留言板</h2>
-                <p class="text-red-500 mt-2">請先設定房號以使用留言板功能。</p>
-            </div>
-            {% return %}
-        {% endif %}
+{% block extra_css %}
+<!-- 如果有額外 CSS，可以放在這裡 -->
+<style>
+/* 限制文章摘要兩行顯示 */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style>
+{% endblock %}
 
+{% block content %}
+
+<main class="max-w-4xl mx-auto p-4 md:p-8">
+    {% if no_room_assigned %}
+        <div class="text-center p-10 bg-red-100 rounded-lg shadow-md">
+            <h2 class="text-2xl font-bold text-red-700">無法顯示留言板</h2>
+            <p class="text-red-500 mt-2">請先設定房號以使用留言板功能。</p>
+        </div>
+    {% else %}
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-extrabold text-gray-900">房號留言板</h1>
             <a href="{% url 'chats:create' %}" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-lg shadow-md hover:bg-purple-700 transition">
@@ -77,7 +71,7 @@
                 </div>
             {% endfor %}
         </section>
+    {% endif %}
+</main>
 
-    </main>
-</body>
-</html>
+{% endblock %}
