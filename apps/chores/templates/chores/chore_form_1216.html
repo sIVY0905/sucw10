@@ -9,29 +9,27 @@
             {% if form.instance.pk %}編輯家務：{{ form.instance.title }}{% else %}新增家務{% endif %}
         </h1>
 
-        <div class="mb-6 flex items-center bg-indigo-50 p-4 rounded-lg border border-indigo-100">
-            <i class="fas fa-door-open text-indigo-500 mr-3 text-xl"></i>
-            <div>
-                <p class="text-xs text-indigo-400 font-bold uppercase tracking-wider">當前作業房號</p>
-                <p class="text-lg font-bold text-indigo-800">{{ room.room_number|default:"未分配" }}</p>
-            </div>
-        </div>
-
-        <form method="post" class="space-y-6" id="chore-form">
+        <form method="post" class="space-y-6">
             {% csrf_token %}
             
+            <!-- 錯誤信息 -->
             {% if form.errors %}
                 <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg" role="alert">
                     <p class="font-bold">請修正以下錯誤：</p>
-                    <ul class="list-disc ml-5">
+                    <ul>
                         {% for field in form %}
-                            {% for error in field.errors %}<li>{{ field.label }}: {{ error }}</li>{% endfor %}
+                            {% for error in field.errors %}
+                                <li>{{ field.label }}: {{ error }}</li>
+                            {% endfor %}
                         {% endfor %}
-                        {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
                     </ul>
                 </div>
             {% endif %}
 
+            <!-- 家務名稱 -->
             <div>
                 <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
                     {{ form.title.label }} <span class="text-red-500">*</span>
@@ -40,6 +38,7 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 類型 -->
                 <div>
                     <label for="{{ form.type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
                         {{ form.type.label }} <span class="text-red-500">*</span>
@@ -47,25 +46,32 @@
                     {{ form.type }}
                 </div>
                 
+                <!-- 頻率 -->
                 <div>
                     <label for="{{ form.frequency_days.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
                         {{ form.frequency_days.label }} <span class="text-red-500">*</span>
                     </label>
                     <div class="flex items-center space-x-2">
                         {{ form.frequency_days }}
-                        <span class="text-gray-500 whitespace-nowrap">天一次</span>
+                        <span class="text-gray-500">天一次</span>
                     </div>
                 </div>
             </div>
 
+            <!-- 私人區域 (依據類型顯示/隱藏) -->
             <div id="private-area-container" style="{% if form.instance.type != 'PRIVATE' %}display:none;{% endif %}">
                 <label for="{{ form.private_area.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
                     {{ form.private_area.label }} <span class="text-red-500">*</span>
                 </label>
                 {{ form.private_area }}
-                <p class="text-xs text-gray-400 mt-1">例如：我的書桌、小明的主臥衛浴。</p>
+                <p class="text-xs text-gray-500 mt-1">私人/區域名稱是必填的，用來分組管理。</p>
+                <p class="text-gray-700 mt-1">
+                    房號: {% if form.instance.private_area %}{{ form.instance.private_area.name }}{% else %}未分配{% endif %}
+                </p>
+                
             </div>
             
+            <!-- 上次完成日期 -->
             <div>
                 <label for="{{ form.last_completed.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
                     {{ form.last_completed.label }}
@@ -73,17 +79,18 @@
                 {{ form.last_completed }}
             </div>
             
-            <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <label for="{{ form.assigned_to.id_for_label }}" class="block text-sm font-semibold text-gray-700 mb-2">
+            <!-- 負責成員 -->
+            <div>
+                <label for="{{ form.assigned_to.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
                     {{ form.assigned_to.label }}
                 </label>
                 {{ form.assigned_to }}
-                <div id="assigned-hint" class="mt-2 text-xs font-medium">
-                    </div>
+                <p class="text-xs text-gray-500 mt-1">{{ form.assigned_to.help_text }}</p>
             </div>
             
+            <!-- 按鈕組 -->
             <div class="flex justify-end space-x-4 pt-4">
-                <a href="{% url 'chores:list' %}" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition shadow-sm">
+                <a href="{% url 'chores:list' %}" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition shadow-md">
                     取消
                 </a>
                 <button type="submit" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition shadow-lg">
@@ -96,43 +103,27 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const typeSelect = document.getElementById('id_type');
+        const typeSelect = document.getElementById('id_type');  // 修正
         const areaContainer = document.getElementById('private-area-container');
-        const privateAreaInput = document.getElementById('id_private_area');
-        const assignedSelect = document.getElementById('id_assigned_to');
-        const hintBox = document.getElementById('assigned-hint');
-        
-        // 從 Django 獲取當前用戶 ID
-        const currentUserId = "{{ request.user.id }}";
+        const privateAreaInput = document.getElementById('id_private_area'); // 修正
 
-        function updateUI() {
-            const isPrivate = typeSelect.value === 'PRIVATE';
-            
-            // 1. 處理私人區域顯示
-            areaContainer.style.display = isPrivate ? 'block' : 'none';
-            privateAreaInput.required = isPrivate;
-            privateAreaInput.disabled = !isPrivate;
-
-            // 2. 處理成員選單提示與自動勾選
-            if (isPrivate) {
-                hintBox.innerHTML = '<span class="text-amber-600"><i class="fas fa-info-circle mr-1"></i> 私人家事將自動指派給您。</span>';
-                
-                // 自動選中當前用戶
-                Array.from(assignedSelect.options).forEach(opt => {
-                    if (opt.value === currentUserId) {
-                        opt.selected = true;
-                    } else if (!"{{ form.instance.pk }}") { 
-                        // 新增模式下，非本人則取消選取
-                        opt.selected = false;
-                    }
-                });
+        function toggleAreaField() {
+            if (typeSelect.value === 'PRIVATE') {
+                areaContainer.style.display = 'block';
+                privateAreaInput.required = true;
+                privateAreaInput.disabled = false;
             } else {
-                hintBox.innerHTML = '<span class="text-indigo-600"><i class="fas fa-users mr-1"></i> 公共家事可指派給房內多位成員。</span>';
+                areaContainer.style.display = 'none';
+                privateAreaInput.required = false;
+                privateAreaInput.disabled = true;
             }
         }
 
-        typeSelect.addEventListener('change', updateUI);
-        updateUI(); // 頁面加載後初始化一次
+        // 監聽類型變更
+        typeSelect.addEventListener('change', toggleAreaField);
+
+        // 初始狀態設置
+        toggleAreaField();
     });
 </script>
 {% endblock %}

@@ -179,6 +179,11 @@ class ChoreCreateView(LoginRequiredMixin, CreateView):
         form.instance.room = self.room
         form.instance.creator = self.request.user 
         return super().form_valid(form)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['room'] = get_current_room(self.request) # 確保 Template 能拿到 room 物件
+        context['user'] = self.request.user # 傳遞當前用戶給 form
+        return context
 
 
 class ChoreUpdateView(LoginRequiredMixin, UpdateView):
@@ -193,6 +198,16 @@ class ChoreUpdateView(LoginRequiredMixin, UpdateView):
         if not self.room:
              return self.model.objects.none()
         return self.model.objects.filter(room=self.room)
+    def get_form_kwargs(self): # 編輯頁也需要限制成員選單
+        kwargs = super().get_form_kwargs()
+        kwargs['room'] = get_current_room(self.request)
+        kwargs['user'] = self.request.user # 傳遞當前用戶給 form
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['room'] = get_current_room(self.request)
+        return context
 
 
 class ChoreDeleteView(LoginRequiredMixin, DeleteView):
