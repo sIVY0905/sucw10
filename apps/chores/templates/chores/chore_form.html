@@ -1,34 +1,125 @@
-<div class="p-3 border rounded-lg hover:shadow-md transition duration-150 flex justify-between items-center">
-    <div class="flex-1 min-w-0">
-        <p class="text-lg font-semibold text-gray-800 truncate">
-            <span class="dot {{ chore.status|lower }}-dot"></span>
-            {{ chore.title }} 
-            <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-{{ type_color }}-100 text-{{ type_color }}-600">{{ chore.type }}</span>
-        </p>
-        
-        <p class="text-sm text-gray-500 mt-1 ml-4">
-            頻率: 每 {{ chore.frequency }} 天一次 | 
-            上次完成: 
-            {% if chore.last_completed %}
-                {{ chore.last_completed|date:"Y/m/d" }} ({{ chore.days_ago }} 天前)
-            {% else %}
-                <span class="text-red-500">從未完成</span>
+{% extends "core/base.html" %}
+
+{% block title %}{% if form.instance.pk %}編輯家務{% else %}新增家務{% endif %} | 房務管理{% endblock %}
+
+{% block content %}
+<main class="max-w-3xl mx-auto p-4 md:p-8">
+    <div class="bg-white p-6 md:p-10 rounded-xl shadow-2xl">
+        <h1 class="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-2">
+            {% if form.instance.pk %}編輯家務：{{ form.instance.title }}{% else %}新增家務{% endif %}
+        </h1>
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- 錯誤信息 -->
+            {% if form.errors %}
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg" role="alert">
+                    <p class="font-bold">請修正以下錯誤：</p>
+                    <ul>
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <li>{{ field.label }}: {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
             {% endif %}
-        </p>
 
-        {% if chore.assigned_members %}
-            <p class="text-xs text-gray-600 mt-1 ml-4">
-                負責人: {{ chore.assigned_members|join:", " }}
-            </p>
-        {% endif %}
-    </div>
+            <!-- 家務名稱 -->
+            <div>
+                <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                    {{ form.title.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.title }}
+            </div>
 
-    <div class="flex space-x-2 ml-4 flex-shrink-0">
-        <a href="{% url 'chores:update' pk=chore.id %}" class="p-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200" title="編輯">
-            編輯
-        </a>
-        <a href="{% url 'chores:delete' pk=chore.id %}" class="p-2 text-sm bg-red-100 text-red-600 rounded-lg hover:bg-red-200" title="刪除">
-            刪除
-        </a>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 類型 -->
+                <div>
+                    <label for="{{ form.type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        {{ form.type.label }} <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.type }}
+                </div>
+                
+                <!-- 頻率 -->
+                <div>
+                    <label for="{{ form.frequency_days.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        {{ form.frequency_days.label }} <span class="text-red-500">*</span>
+                    </label>
+                    <div class="flex items-center space-x-2">
+                        {{ form.frequency_days }}
+                        <span class="text-gray-500">天一次</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 私人區域 (依據類型顯示/隱藏) -->
+            <div id="private-area-container" style="{% if form.instance.type != 'PRIVATE' %}display:none;{% endif %}">
+                <label for="{{ form.private_area.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                    {{ form.private_area.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.private_area }}
+                <p class="text-xs text-gray-500 mt-1">私人/區域名稱是必填的，用來分組管理。</p>
+            </div>
+            
+            <!-- 上次完成日期 -->
+            <div>
+                <label for="{{ form.last_completed.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                    {{ form.last_completed.label }}
+                </label>
+                {{ form.last_completed }}
+            </div>
+            
+            <!-- 負責成員 -->
+            <div>
+                <label for="{{ form.assigned_to.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                    {{ form.assigned_to.label }}
+                </label>
+                {{ form.assigned_to }}
+                <p class="text-xs text-gray-500 mt-1">{{ form.assigned_to.help_text }}</p>
+            </div>
+            
+            <!-- 按鈕組 -->
+            <div class="flex justify-end space-x-4 pt-4">
+                <a href="{% url 'chores:list' %}" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition shadow-md">
+                    取消
+                </a>
+                <button type="submit" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition shadow-lg">
+                    {% if form.instance.pk %}儲存變更{% else %}新增家務{% endif %}
+                </button>
+            </div>
+        </form>
     </div>
-</div>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const typeSelect = document.getElementById('id_type');  // 修正
+        const areaContainer = document.getElementById('private-area-container');
+        const privateAreaInput = document.getElementById('id_private_area'); // 修正
+
+        function toggleAreaField() {
+            if (typeSelect.value === 'PRIVATE') {
+                areaContainer.style.display = 'block';
+                privateAreaInput.required = true;
+                privateAreaInput.disabled = false;
+            } else {
+                areaContainer.style.display = 'none';
+                privateAreaInput.required = false;
+                privateAreaInput.disabled = true;
+            }
+        }
+
+        // 監聽類型變更
+        typeSelect.addEventListener('change', toggleAreaField);
+
+        // 初始狀態設置
+        toggleAreaField();
+    });
+</script>
+{% endblock %}

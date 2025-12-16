@@ -32,25 +32,25 @@ class Chore(models.Model):
     private_area = models.CharField(max_length=100, blank=True, null=True, verbose_name='私人家務區域')
 
     # 使用自定義管理器
-    objects = ChoreManager()
+    objects = ChoreManager() # 確保使用了修正後的 ChoreManager
 
     @property
     def next_due_date(self):
         """計算下一次應完成的日期 (僅限 Python 內部使用，不可用於 ORM 查詢)"""
+        # 這裡應該直接調用 Manager 的方法以保持單一計算邏輯，但為了避免循環依賴，我們使用簡單的屬性計算
         if self.frequency_days is None:
             return None
-        
-        # 使用上次完成時間 + 頻率
-        return (self.last_completed.date() + timedelta(days=self.frequency_days))
+        return (self.last_completed + timedelta(days=self.frequency_days))
 
     class Meta:
         verbose_name = '家務事項'
         verbose_name_plural = '家務事項'
-        ordering = ['last_completed']
+        ordering = ['last_completed'] # 初步排序
+        # 建議添加唯一約束，例如: unique_together = ('room', 'title')
 
     def __str__(self):
         return f"{self.room.room_number} - {self.title}"
-
+        
 class ChoreRecord(models.Model):
     """家務完成紀錄模型"""
     chore = models.ForeignKey(Chore, on_delete=models.CASCADE, related_name='records', verbose_name='家務事項')
@@ -65,4 +65,4 @@ class ChoreRecord(models.Model):
     def __str__(self):
         return f"{self.chore.title} 於 {self.completed_on.strftime('%Y-%m-%d')}"
 
-# Create your models here.
+

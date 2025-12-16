@@ -13,7 +13,7 @@ urlpatterns = [
     path('dashboard/', views.HomeView.as_view(), name='home'),
     # 家務清單與統計 (F-3.1, F-3.2, F-3.4)
     # path('list/', views.ChoreListView.as_view(), name='list'), 
-    
+    path('api/stats/', views.chore_stats_api, name='chore-stats-api'),
     # CRUD 操作 (F-3.3)
     path('new/', views.ChoreCreateView.as_view(), name='create'),
     path('edit/<int:pk>/', views.ChoreUpdateView.as_view(), name='update'),

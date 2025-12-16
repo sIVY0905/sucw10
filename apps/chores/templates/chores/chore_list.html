@@ -2,17 +2,74 @@
 
 {% block title %}家務清單 | 房務管理{% endblock %}
 
+{% block extra_css %}
+<style>
+/* 狀態點 CSS */
+.dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; transition: background-color 0.3s; }
+.red-dot { background-color: #ef4444; }
+.green-dot { background-color: #22c55e; }
+.grey-dot { background-color: #9ca3af; }
+.done-dot { background-color: #0d9488; }
+
+/* 大螢幕 sticky */
+.lg\:col-span-1.h-fit.sticky {
+    position: sticky;
+    top: 24px;
+    transition: all 0.3s ease;
+}
+
+/* 小螢幕滾動效果 */
+@media (max-width: 1023px) {
+    .lg\:col-span-1.h-fit.sticky {
+        position: fixed !important;
+        top: 0.5rem;
+        right: 0.5rem;
+        width: 60px; /* 縮小寬度 */
+        height: 60px; /* 縮小高度 */
+        padding: 0.25rem;
+        border-radius: 1rem;
+        background-color: white;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        z-index: 50;
+        transform: scale(0.6);
+        opacity: 0.9;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    /* 縮小時隱藏文字，僅保留圓形圖 */
+    .lg\:col-span-1.h-fit.sticky.shrink .stats-text {
+        display: none;
+    }
+
+    .lg\:col-span-1.h-fit.sticky .stats-chart {
+        width: 60px !important;
+        height: 60px !important;
+    }
+
+    /* 右側家務清單要加 z-index 避免被遮住 */
+    .lg\:col-span-3 {
+        position: relative;
+        z-index: 10;
+    }
+}
+</style>
+    
+{% endblock %}
+
 {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+
 <main class="max-w-7xl mx-auto p-4 md:p-8">
     {% if no_room_assigned %}
-        <div class="text-center p-10 bg-red-100 rounded-lg shadow-md">
+        <div class="text-center p-10 bg-red-100 rounded-xl shadow-lg border-2 border-red-300">
             <h2 class="text-2xl font-bold text-red-700">尚未加入房號</h2>
-            <p class="text-red-500 mt-2">請先前往成員介面新增或加入房號。</p>
-            <a href="/rooms/join/" class="mt-4 inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">前往加入</a>
+            <p class="text-red-500 mt-2">請先前往成員介面新增或加入房號，才能查看家務清單。</p>
+            <a href="{% url 'rooms:join' %}" class="mt-4 inline-block px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition shadow-md">前往加入房號</a>
         </div>
     {% else %}
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-extrabold text-gray-900">家務清單總覽</h1>
+            <h1 class="text-3xl font-extrabold text-gray-900">家務清單總覽 (房號: {{ room.room_number }})</h1>
             <a href="{% url 'chores:create' %}" class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg shadow-md hover:bg-indigo-700 transition">
                 + 新增家務 (F-3.3)
             </a>
@@ -20,36 +77,34 @@
         
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
             
+            <!-- 左側統計區塊 (F-3.4) -->
             <section class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg h-fit sticky top-24">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">總體完成統計</h2>
-                
-                <div class="flex justify-center mb-4">
-                    <div style="width: 200px; height: 200px;">
-                        <canvas id="completionChart"></canvas>
-                    </div>
+                <div class="stats-chart">
+                    <canvas id="completionChart"></canvas>
                 </div>
-
-                <div class="text-center">
+                <div class="stats-text text-center mt-2">
                     <p class="text-4xl font-extrabold text-indigo-600">{{ pie_chart_data.percentage }}%</p>
                     <p class="text-sm text-gray-500 mt-1">（{{ pie_chart_data.completed }} / {{ pie_chart_data.total }} 項完成）</p>
                 </div>
-
-                <div class="mt-4 space-y-1">
+                <div class="mt-4 space-y-1 pt-4 border-t">
                     <p class="flex justify-between text-sm text-green-600 font-medium">
-                        已完成: <span>{{ pie_chart_data.completed }} 項</span>
+                        已完成 / 預定: <span class="text-base">{{ pie_chart_data.completed }} 項</span>
                     </p>
                     <p class="flex justify-between text-sm text-red-600 font-medium">
-                        待辦/積欠: <span>{{ pie_chart_data.pending }} 項</span>
+                        待辦 / 積欠: <span class="text-base">{{ pie_chart_data.pending }} 項</span>
                     </p>
                 </div>
             </section>
 
+            <!-- 右側家務清單 (F-3.1, F-3.2) -->
             <section class="lg:col-span-3 space-y-8">
                 
+                <!-- 公共家事 -->
                 <div class="bg-white p-6 rounded-xl shadow-lg">
                     <h2 class="text-2xl font-bold text-indigo-600 mb-4 border-b pb-2">公共家事 ({{ public|length }})</h2>
                     <div class="space-y-4">
                         {% for chore in public %}
+                            <!-- 傳入 status 讓模板判斷紅綠燈點 -->
                             {% include 'chores/_chore_item.html' with chore=chore status=chore.status type_color='indigo' %}
                         {% empty %}
                             <p class="text-gray-500 p-4 bg-gray-50 rounded-lg">目前沒有設定公共家事。點擊上方按鈕新增！</p>
@@ -57,6 +112,7 @@
                     </div>
                 </div>
 
+                <!-- 私人家事 (按區域分組) -->
                 {% if private_by_area %}
                     <h2 class="text-2xl font-bold text-gray-800 mt-8 mb-4">私人家事 (按區域)</h2>
                     
@@ -65,6 +121,7 @@
                             <h3 class="text-xl font-bold text-yellow-700 mb-3">{{ area }} ({{ chores_list|length }})</h3>
                             <div class="space-y-4">
                                 {% for chore in chores_list %}
+                                    <!-- 傳入 status 讓模板判斷紅綠燈點 -->
                                     {% include 'chores/_chore_item.html' with chore=chore status=chore.status type_color='yellow' %}
                                 {% endfor %}
                             </div>
@@ -81,13 +138,13 @@
     {% endif %}
 </main>
 
-<script id="pie-chart-data" type="application/json">
-    {{ pie_chart_data|json_script:"pie-chart-data" }}
-</script>
+<!-- Chart.js 數據和腳本 -->
+{{ pie_chart_data|json_script:"pie-chart-data" }}
 <script>
 const pieScript = document.getElementById('pie-chart-data');
 
 if (pieScript) {
+    // 從 Django 模板中解析數據
     const chartData = JSON.parse(pieScript.textContent);
     const pieData = {
         completed: chartData.completed,
@@ -99,23 +156,27 @@ if (pieScript) {
     new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['已完成', '待辦/積欠'],
+            labels: ['已完成 / 預定', '待辦 / 積欠'],
             datasets: [{
                 data: [pieData.completed, pieData.pending],
                 backgroundColor: [
-                    '#22c55e',
-                    '#ef4444'
+                    '#0d9488', /* Teal for Completed/Scheduled */
+                    '#ef4444'  /* Red for Pending/Overdue */
                 ],
-                hoverOffset: 4
+                hoverOffset: 8
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            cutout: '70%', /* 使其成為甜甜圈圖 */
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { font: { size: 14 } }
+                    labels: { 
+                        font: { size: 14, family: 'Inter, sans-serif' },
+                        boxWidth: 20
+                    }
                 },
                 tooltip: {
                     callbacks: {
@@ -131,5 +192,102 @@ if (pieScript) {
         }
     });
 }
+
 </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+
+<script>
+let choreChart = null;
+
+function renderChart(data) {
+    const ctx = document.getElementById('completionChart');
+    if (!ctx) return;
+
+    if (choreChart) {
+        choreChart.data.datasets[0].data = [
+            data.overdue,
+            data.today,
+            data.future
+        ];
+        choreChart.update();
+        return;
+    }
+
+    choreChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['逾期', '今天', '未來'],
+            datasets: [{
+                data: [
+                    data.overdue,
+                    data.today,
+                    data.future
+                ],
+                backgroundColor: [
+                    '#ef4444', // 紅：逾期
+                    '#facc15', // 黃：今天
+                    '#22c55e'  // 綠：未來
+                ],
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+}
+
+</script>
+
 {% endblock %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const statsBlock = document.querySelector('.lg\\:col-span-1.h-fit.sticky');
+    
+        if (statsBlock) {
+            window.addEventListener('scroll', () => {
+                const scrollY = window.scrollY;
+    
+                if (scrollY > 100) { // 捲動超過 100px 就縮小
+                    statsBlock.classList.add('shrink');
+                } else {
+                    statsBlock.classList.remove('shrink');
+                }
+            });
+        }
+    });
+</script>
+    
+<script>
+    async function refreshChoreStats() {
+        const response = await fetch("{% url 'chores:chore-stats-api' %}");
+        const data = await response.json();
+        renderChart(data);
+    }
+        
+    document.addEventListener('DOMContentLoaded', refreshChoreStats);
+</script>
+        
+<script>
+    document.addEventListener('click', async function (e) {
+        if (!e.target.classList.contains('complete-btn')) return;
+    
+        const choreId = e.target.dataset.id;
+    
+        await fetch(`/chores/${choreId}/toggle/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        });
+    
+        refreshChoreStats(); // ⭐ 即時更新圓餅圖
+    });
+    </script>
+    

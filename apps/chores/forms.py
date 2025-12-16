@@ -37,8 +37,9 @@ class ChoreForm(forms.ModelForm):
         # 初始時隱藏 private_area 欄位 (前端 JS 需配合處理顯示/隱藏)
         # 預設公共家事不需要 private_area
         if not self.instance or self.instance.type == 'PUBLIC':
-             self.fields['private_area'].required = False
-             self.fields['private_area'].widget.attrs['style'] = 'display: none;'
+            self.fields['private_area'].required = False
+             # 移除 widget style，前端用 container 控制
+            self.fields['private_area'].widget.attrs.pop('style', None)
              
         # 調整 assigned_to 的標籤，M2M 預設是多選
         self.fields['assigned_to'].help_text = "選擇負責這項家務的所有成員。"

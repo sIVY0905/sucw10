@@ -1,0 +1,112 @@
+
+<!-- 家務清單中的單個項目 (chore.status: Red/Green/Grey/Done) -->
+<div class="p-3 border rounded-xl hover:shadow-lg transition duration-150 flex justify-between items-center bg-white shadow-sm">
+    <div class="flex-1 min-w-0">
+        <p class="text-lg font-semibold text-gray-800 truncate flex items-center">
+            <!-- 紅綠燈點 (使用 chore.status) -->
+            <span class="dot {{ chore.status|lower }}-dot"></span>
+            
+            <span class="{% if chore.status == 'Red' %}text-red-700 font-extrabold{% elif chore.status == 'Done' %}line-through text-gray-500{% endif %}">
+                 {{ chore.title }} 
+            </span>
+            
+            <!-- 類型標籤 -->
+            <span class="text-xs font-normal ml-3 px-2 py-0.5 rounded-full bg-{{ type_color }}-100 text-{{ type_color }}-600">{{ chore.type }}</span>
+        </p>
+        
+        <div class="text-sm text-gray-500 mt-1 ml-4 space-y-0.5">
+            <p>
+                頻率: 每 <span class="font-medium text-gray-700">{{ chore.frequency }}</span> 天一次 
+                {% if chore.status == 'Red' %}
+                    <span class="text-red-600 font-bold ml-2"> (積欠中！)</span>
+                {% endif %}
+            </p>
+            
+            <p>
+                上次完成: 
+                {% if chore.last_completed %}
+                    <span class="text-gray-700">{{ chore.last_completed|date:"Y/m/d" }}</span> ({{ chore.days_ago }} 天前)
+                {% else %}
+                    <span class="text-red-500 font-medium">從未完成</span>
+                {% endif %}
+            </p>
+        </div>
+
+        {% if chore.assigned_members %}
+            <p class="text-xs text-gray-600 mt-2 ml-4 p-1 bg-gray-50 rounded-md inline-block">
+                <span class="font-medium">負責人:</span> {{ chore.assigned_members|join:", " }}
+            </p>
+        {% endif %}
+    </div>
+
+    <!-- 操作按鈕 -->
+    <div class="flex space-x-2 ml-4 flex-shrink-0">
+        <!-- 標記完成按鈕 (只有當狀態不是 Done 或 Grey 時才顯示，或者需要強制完成) -->
+        {% if chore.status != 'Done' and chore.status != 'Grey' %}
+            <button 
+                onclick="markAsComplete({{ chore.id }}, this)" 
+                class="p-2 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition shadow-md" 
+                title="標記完成">
+                ✓ 完成
+            </button>
+        {% endif %}
+
+        <a href="{% url 'chores:update' pk=chore.id %}" class="p-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition" title="編輯">
+            編輯
+        </a>
+        <a href="{% url 'chores:delete' pk=chore.id %}" class="p-2 text-sm bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition" title="刪除">
+            刪除
+        </a>
+    </div>
+</div>
+
+<!-- AJAX 腳本 (確保在基礎模板中載入 jQuery 或 fetch 兼容性) -->
+<script>
+    // 使用原生 fetch 實現 AJAX 標記完成
+    function markAsComplete(choreId, buttonElement) {
+        if (!confirm('確認要將此家務標記為完成嗎？')) {
+            return;
+        }
+
+        const url = "{% url 'chores:complete' pk=0 %}".replace('/0/', '/' + choreId + '/');
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value; // 假設您的 base.html 中有 CSRF token
+
+        buttonElement.disabled = true;
+        buttonElement.textContent = '處理中...';
+        buttonElement.classList.add('opacity-50');
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json'
+            },
+            // body: JSON.stringify({}) // POST without body works fine for this action
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(data.message); // 使用 alert 替換為 custom modal (如果您的環境不支持 alert)
+                // 成功後重新載入頁面以更新狀態 (最簡單的方式)
+                window.location.reload(); 
+            } else {
+                alert('錯誤: ' + data.message);
+                buttonElement.disabled = false;
+                buttonElement.textContent = '✓ 完成';
+                buttonElement.classList.remove('opacity-50');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('發生網路錯誤，請稍後再試。');
+            buttonElement.disabled = false;
+            buttonElement.textContent = '✓ 完成';
+            buttonElement.classList.remove('opacity-50');
+        });
+    }
+
+    // 獲取 CSRF Token 的輔助函式 (如果您的基礎模板中沒有包含它)
+    if (!document.querySelector('[name=csrfmiddlewaretoken]')) {
+        console.warn('CSRF token not found in the DOM. Ensure it is included in your base template.');
+    }
+</script>

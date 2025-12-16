@@ -10,7 +10,8 @@ from django.utils import timezone
 from django.db.models import Count, Q # Q 用於複雜查詢
 from datetime import timedelta
 import json # <-- 確保 json 導入
-
+from django.contrib.auth.decorators import login_required
+from datetime import date
 # 核心模型導入
 from apps.rooms.models import Room 
 from .models import Chore, ChoreRecord 
@@ -55,18 +56,20 @@ class HomeView(LoginRequiredMixin, View): # <-- 使用 View 確保能 redirect
         
         # b) 在 Python 迴圈中動態判斷
         for chore in all_chores:
-            if chore.next_due_date:
-                # 逾期 2 天以上 (Red)
-                if chore.next_due_date < today - timedelta(days=2):
+            # 使用 manager 的邏輯來獲取狀態，可以確保和清單頁面一致
+            status = Chore.objects.get_status(chore)
+            due_date = Chore.objects.get_due_date(chore)
+
+            # 只有 Green (今天/逾期1天) 和 Red (逾期2天+) 視為待辦或積欠
+            if status == 'Green' or status == 'Red':
+                if status == 'Red':
                     overdue_chores.append(chore)
-                
-                # 當天或即將到期 (Green/Yellow)
-                elif chore.next_due_date <= today + timedelta(days=7):
+                else:
                     due_chores.append(chore)
 
         # 排序 (如果需要，可以在這裡排序列表)
-        overdue_chores.sort(key=lambda x: x.next_due_date)
-        due_chores.sort(key=lambda x: x.next_due_date)
+        overdue_chores.sort(key=lambda x: x.last_completed)
+        due_chores.sort(key=lambda x: x.last_completed)
 
         # --- 2. 家務統計 (F-2.2) ---
         thirty_days_ago = timezone.now() - timedelta(days=30)
@@ -98,35 +101,56 @@ class ChoreListView(LoginRequiredMixin, ListView):
     model = Chore
     template_name = 'chores/chore_list.html'
     context_object_name = 'chores'
-    
-    def get_queryset(self):
-        self.room = get_current_room(self.request)
-        if not self.room:
-            return self.model.objects.none()
-        # 1. 從資料庫中獲取所有家務 (只使用 ORM 允許的欄位排序)
-        # 我們將使用 frequency_days 進行初步排序，以確保 ORM 查詢成功
-        queryset = self.model.objects.filter(room=self.room).order_by('frequency_days')
 
-        # 2. 將 QuerySet 轉換為列表，並在 Python 層面使用 next_due_date 進行二次排序
-        # 'next_due_date' 現在是模型的一個屬性
-        chores_list = list(queryset)
-        
-        # 根據 next_due_date 進行排序
-        # 使用 lambda 函式，並處理可能為 None 的情況 (None 排在最後)
-        chores_list.sort(key=lambda x: x.next_due_date if x.next_due_date is not None else timezone.now().date() + timedelta(days=9999))
-        
-        return chores_list
+    def get_queryset(self):
+        # 這個 view 不直接用 queryset
+        self.room = get_current_room(self.request)
+        return Chore.objects.none()
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['room'] = self.room
-        if not self.room:
+
+        room = self.room
+        context['room'] = room
+
+        if not room:
             context['no_room_assigned'] = True
-        
-        # 圓餅圖數據 (簡化版：統計所有成員完成的記錄總數)
-        # 這裡應該使用 ChoreRecord 進行更複雜的統計，但我們先使用簡單的
-        total_records = ChoreRecord.objects.filter(chore__room=self.room).count()
-        context['total_records'] = total_records
-        
+            return context
+
+        # ========= 1️⃣ 家務清單 =========
+        list_data = Chore.objects.get_chore_list_data(room)
+        context['public'] = list_data['public']
+        context['private_by_area'] = list_data['private_by_area']
+
+        # ========= 2️⃣ 圓餅圖 =========
+        context['pie_chart_data'] = Chore.objects.get_completion_percentage(room)
+
+        # ========= 3️⃣ 日曆資料（這裡才可以用 self / room） =========
+        calendar_data = []
+        today = timezone.now().date()
+        start = today.replace(day=1)
+        end = (start + timedelta(days=32)).replace(day=1)
+
+        chores = Chore.objects.filter(room=self.room)
+
+        for chore in chores:
+            if not chore.last_completed:
+                continue
+
+            due = chore.last_completed + timedelta(days=chore.frequency_days)
+
+            while due < end:
+                status = Chore.objects.get_status_by_date(chore, due)
+
+                calendar_data.append({
+                    "date": due.isoformat(),
+                    "title": chore.title,
+                    "status": status  # Green / Red / Grey
+                })
+
+                due += timedelta(days=chore.frequency_days)
+    
+        context["calendar_data_json"] = json.dumps(calendar_data)
         return context
 
 
@@ -138,9 +162,14 @@ class ChoreCreateView(LoginRequiredMixin, CreateView):
     template_name = 'chores/chore_form.html'
     success_url = reverse_lazy('chores:list') 
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['room'] = get_current_room(self.request) # 傳遞 room 參數給 form
+        return kwargs
+
+
     def form_valid(self, form):
         self.room = get_current_room(self.request)
-        room_id = self.request.session.get('current_room_id') # 獲取 ID
         
         if not self.room:
             form.add_error(None, "您尚未加入房號，無法創建家務。")
@@ -199,7 +228,7 @@ class ChoreCompleteView(LoginRequiredMixin, View):
         )
         
         # 更新 Chore 的 last_completed 字段為今天
-        chore.last_completed = timezone.now() # 假設 models.py 使用 last_completed_at
+        chore.last_completed = timezone.now().date() # 假設 models.py 使用 last_completed_at
         
         # 這裡需要 Chore 模型有計算 next_due_date 的方法
         # chore.next_due_date = chore.calculate_next_due_date() 
@@ -211,3 +240,26 @@ class ChoreCompleteView(LoginRequiredMixin, View):
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         return JsonResponse({'status': 'error', 'message': '僅接受 POST 請求。'}, status=405)
+
+@login_required
+def chore_stats_api(request):
+    room = get_current_room(request)
+    chores = Chore.objects.filter(room=room)
+
+    overdue = today_count = future = completed = 0
+
+    for chore in chores:
+        status = Chore.objects.get_status(chore)
+        if status == "Red":
+            overdue += 1
+        elif status == "Green":
+            today_count += 1
+        elif status == "Grey":
+            future += 1
+
+    return JsonResponse({
+        "overdue": overdue,
+        "today": today_count,
+        "future": future,
+        "total": chores.count()
+    })

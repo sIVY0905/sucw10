@@ -1,0 +1,160 @@
+{% extends "core/base.html" %}
+
+{% block title %}家務清單 | 房務管理{% endblock %}
+
+{% block extra_css %}
+<style>
+.dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.red-dot { background-color: #ef4444; }
+.green-dot { background-color: #22c55e; }
+.grey-dot { background-color: #9ca3af; }
+.done-dot { background-color: #0d9488; }
+
+.lg\:col-span-1.h-fit.sticky {
+    position: sticky;
+    top: 24px;
+}
+
+@media (max-width: 1023px) {
+    .lg\:col-span-1.h-fit.sticky {
+        position: fixed !important;
+        top: 0.5rem;
+        right: 0.5rem;
+        width: 60px;
+        height: 60px;
+        padding: 0.25rem;
+        border-radius: 1rem;
+        background-color: white;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        z-index: 50;
+        transform: scale(0.6);
+        overflow: hidden;
+    }
+
+    .lg\:col-span-1.h-fit.sticky.shrink .stats-text {
+        display: none;
+    }
+
+    .stats-chart {
+        width: 60px !important;
+        height: 60px !important;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+
+<main class="max-w-7xl mx-auto p-4 md:p-8">
+
+{% if no_room_assigned %}
+    <div class="text-center p-10 bg-red-100 rounded-xl">
+        <h2 class="text-2xl font-bold text-red-700">尚未加入房號</h2>
+    </div>
+{% else %}
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+
+<!-- 統計區 -->
+<section class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg h-fit sticky top-24">
+    <div class="stats-chart" style="height:220px;">
+        <canvas id="completionChart"></canvas>
+    </div>
+
+    <div class="stats-text text-center mt-2">
+        <p class="text-3xl font-bold text-indigo-600">家務狀態</p>
+    </div>
+</section>
+
+<!-- 清單 -->
+<section class="lg:col-span-3 space-y-8">
+
+<div class="bg-white p-6 rounded-xl shadow-lg">
+    <h2 class="text-2xl font-bold text-indigo-600 mb-4">
+        公共家事 ({{ public|length }})
+    </h2>
+
+    {% for chore in public %}
+        {% include 'chores/_chore_item.html' with chore=chore %}
+    {% endfor %}
+</div>
+
+{% if private_by_area %}
+    {% for area, chores_list in private_by_area.items %}
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <h3 class="text-xl font-bold text-yellow-700 mb-3">
+            {{ area }} ({{ chores_list|length }})
+        </h3>
+
+        {% for chore in chores_list %}
+            {% include 'chores/_chore_item.html' with chore=chore %}
+        {% endfor %}
+    </div>
+    {% endfor %}
+{% endif %}
+
+</section>
+</div>
+{% endif %}
+</main>
+
+<!-- ================== 圓餅圖 JS ================== -->
+
+<script>
+let choreChart = null;
+
+function renderChart(data) {
+    const ctx = document.getElementById('completionChart');
+    if (!ctx) return;
+
+    if (choreChart) {
+        choreChart.data.datasets[0].data = [
+            data.overdue,
+            data.today,
+            data.future
+        ];
+        choreChart.update();
+        return;
+    }
+
+    choreChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['逾期', '今天', '未來'],
+            datasets: [{
+                data: [data.overdue, data.today, data.future],
+                backgroundColor: ['#ef4444', '#facc15', '#22c55e'],
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+}
+
+async function refreshChoreStats() {
+    const res = await fetch("{% url 'chores:chore-stats-api' %}");
+    const data = await res.json();
+    renderChart(data);
+}
+
+document.addEventListener('DOMContentLoaded', refreshChoreStats);
+</script>
+
+<!-- shrink -->
+<script>
+document.addEventListener('scroll', () => {
+    const block = document.querySelector('.lg\\:col-span-1.h-fit.sticky');
+    if (!block) return;
+    block.classList.toggle('shrink', window.scrollY > 100);
+});
+</script>
+
+{% endblock %}

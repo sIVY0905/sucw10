@@ -1,0 +1,32 @@
+{% extends "core/base.html" %}
+
+{% block title %}刪除家務確認 | 房務管理{% endblock %}
+
+{% block content %}
+<main class="max-w-xl mx-auto p-4 md:p-8">
+    <div class="bg-white p-6 md:p-10 rounded-xl shadow-2xl border-t-4 border-red-500">
+        <h1 class="text-2xl font-bold text-red-700 mb-4">確認刪除家務事項？</h1>
+        <p class="text-gray-700 mb-6">
+            您確定要刪除家務 **「{{ object.title }}」** 嗎？此操作將同時刪除所有相關的完成紀錄，且**無法復原**。
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-4 bg-gray-50 p-4 rounded-lg border">
+                <p class="font-semibold text-gray-800">家務名稱: <span class="text-red-600">{{ object.title }}</span></p>
+                <p>類型: {{ object.get_type_display }}</p>
+                <p>頻率: 每 {{ object.frequency_days }} 天一次</p>
+            </div>
+
+            <div class="flex justify-end space-x-4 mt-6">
+                <a href="{% url 'chores:list' %}" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition shadow-md">
+                    取消
+                </a>
+                <button type="submit" class="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition shadow-lg">
+                    確認刪除
+                </button>
+            </div>
+        </form>
+    </div>
+</main>
+{% endblock %}

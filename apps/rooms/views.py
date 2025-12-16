@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import View, FormView, ListView
+from django.contrib import messages
 from .models import Room
 from django.urls import reverse # 需要導入
 from .forms import CreateRoomForm, JoinRoomForm
@@ -30,23 +31,23 @@ class SelectRoomView(LoginRequiredMixin, View):
     # 您還需要一個 CreateRoomView 和 JoinRoomView
 
 class RoomListView(LoginRequiredMixin, View):
-    """顯示用戶當前所有房號，並提供創建/加入房號的入口"""
+    """顯示用戶當前所有房號，並提供創建 / 加入房號的入口"""
+    template_name = 'rooms/room_list.html'
+
     def get(self, request):
         user_rooms = Room.objects.filter(members=request.user)
-        # 獲取當前房間 ID，用於標記
         current_room_id = request.session.get('current_room_id')
-        
+
         context = {
             'user_rooms': user_rooms,
-            'create_form': CreateRoomForm(),  # 傳遞創建表單
-            'join_form': JoinRoomForm(),      # 傳遞加入表單
+            'create_form': CreateRoomForm(),
+            'join_form': JoinRoomForm(),
             'current_room_id': current_room_id,
         }
-        return render(request, 'rooms/room_list.html', context)
-
+        return render(request, self.template_name, context)
 class CreateRoomView(LoginRequiredMixin, FormView):
     """處理創建新房號"""
-    template_name = 'rooms/room_list.html' # 重用列表頁面
+     # 重用列表頁面
     form_class = CreateRoomForm
     success_url = reverse_lazy('rooms:list') # 成功後導回列表
 
@@ -62,26 +63,28 @@ class CreateRoomView(LoginRequiredMixin, FormView):
 
 class JoinRoomView(LoginRequiredMixin, FormView):
     """處理加入現有房號"""
-    template_name = 'rooms/room_list.html' # 重用列表頁面
     form_class = JoinRoomForm
     success_url = reverse_lazy('rooms:list')
 
     def form_valid(self, form):
         room = form.cleaned_data['room']
-        
-        # 檢查用戶是否已在房間內
-        if self.request.user in room.members.all():
-            form.add_error(None, "您已是該房號的成員。")
-            return self.form_invalid(form)
+        user = self.request.user
 
-        room.members.add(self.request.user) # 將用戶加入房間
-        self.request.session['current_room_id'] = room.id # 自動設定為當前房間
-        return super().form_valid(form)
+        if user in room.members.all():
+            messages.error(self.request, "您已是該房號的成員。")
+            return redirect(self.success_url)
+
+        room.members.add(user)
+        self.request.session['current_room_id'] = room.id
+        messages.success(self.request, "成功加入房間！")
+        return redirect(self.success_url)
 
     def form_invalid(self, form):
-        return RoomListView.as_view()(self.request, join_form=form) # 重新渲染列表頁面，但包含錯誤
-
-
+        # 顯示表單驗證錯誤（例如房號不存在）
+        for error in form.non_field_errors():
+            messages.error(self.request, error)
+        return redirect(self.success_url)
+        
 # 這裡需要一個輔助函數來獲取當前房間
 def get_current_room(request):
     current_room_id = request.session.get('current_room_id') 
