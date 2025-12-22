@@ -40,62 +40,53 @@ class HomeView(LoginRequiredMixin, View): # <-- 使用 View 確保能 redirect
     """F-2.0 主頁儀表板"""
     def get(self, request):
         self.room = get_current_room(request)
-        
+        user = request.user
         if not self.room:
             # F-1.3: 如果沒有房間，導向房間選擇頁面
             return redirect(reverse('rooms:list')) 
 
         # --- 1. 待辦家務 (F-2.1) ---
-        today = timezone.now().date()
+        today_chores, overdue_chores = Chore.objects.get_my_todos(self.room, user)
         
-        # a) 【關鍵修正】：先取出當前房號的所有家事
-        all_chores = Chore.objects.filter(room=self.room)
-        
-        overdue_chores = []
-        due_chores = []
-        
-        # b) 在 Python 迴圈中動態判斷
-        for chore in all_chores:
-            # 使用 manager 的邏輯來獲取狀態，可以確保和清單頁面一致
-            status = Chore.objects.get_status(chore)
-            due_date = Chore.objects.get_due_date(chore)
+        raw_events = Chore.objects.format_for_calendar(self.room, user)
+        # overdue_chores = []  
+        # due_chores = []      
+        calendar_events = []
+        for e in raw_events:
+            color = {
+                "Green": "green",
+                "Red": "red",
+                "Grey": "grey",
+            }.get(e["status"], "grey")
 
-            # 只有 Green (今天/逾期1天) 和 Red (逾期2天+) 視為待辦或積欠
-            if status == 'Green' or status == 'Red':
-                if status == 'Red':
-                    overdue_chores.append(chore)
-                else:
-                    due_chores.append(chore)
+            calendar_events.append({
+                "date": e["date"],
+                "title": e["title"],
+                "color": color,
+            })
+           
+        # 2. 個人統計 (Doughnut 圖) - 確保 Manager 也要同步考慮輪替邏輯
+        pie_chart_data = Chore.objects.get_my_completion_percentage(self.room, user)
 
-        # 排序 (如果需要，可以在這裡排序列表)
-        overdue_chores.sort(key=lambda x: x.last_completed)
-        due_chores.sort(key=lambda x: x.last_completed)
-
-        # --- 2. 家務統計 (F-2.2) ---
-        thirty_days_ago = timezone.now() - timedelta(days=30)
-        
+        # 3. 成員貢獻統計
+        thirty_days_ago = timezone.now() - timezone.timedelta(days=30)
         member_stats = ChoreRecord.objects.filter(
             chore__room=self.room,
             completed_on__gte=thirty_days_ago
         ).values('completed_by__username').annotate(
             completed_count=Count('completed_by')
         ).order_by('-completed_count')
-        
-        # --- 3. 準備日曆和值日生表數據 ---
-        # 這裡需要 ChoreManager 的 format_for_calendar 等方法，
-        # 由於我們沒有 Manager 程式碼，這裡留空或使用簡單數據。
-        
+
         context = {
             'room': self.room,
-            'today_chores': due_chores,
+            'today_chores':today_chores,
             'overdue_chores': overdue_chores,
             'member_stats': member_stats,
-            # 'calendar_data_json': json.dumps([]), 
-            # 'duty_roster_json': json.dumps([]),
+            'pie_chart_data': pie_chart_data,
+            'calendar_data': calendar_events,
         }
         return render(request, 'chores/home.html', context)
-
-
+        
 class ChoreListView(LoginRequiredMixin, ListView): 
     """F-3.1, F-3.2 家務清單與統計"""
     model = Chore
@@ -109,22 +100,30 @@ class ChoreListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
-        room = self.room
-        context['room'] = room
+        room = get_current_room(self.request)
+        user = self.request.user
+        context['room'] = room # 確保導航欄顯示房號
 
         if not room:
             context['no_room_assigned'] = True
             return context
 
-        # ========= 1️⃣ 家務清單 =========
+        # 1. 獲取原始清單數據
         list_data = Chore.objects.get_chore_list_data(room)
+        
+        # 2. 過濾私人家事：只顯示負責人是「目前登入者」的
+        filtered_private = {}
+        for area, chore_list in list_data['private_by_area'].items():
+            # assigned_members 是在 manager.py 中定義的列表
+            my_private = [c for c in chore_list if user.username in c['assigned_members']]
+            if my_private:
+                filtered_private[area] = my_private
+        
         context['public'] = list_data['public']
-        context['private_by_area'] = list_data['private_by_area']
+        context['private_by_area'] = filtered_private
 
-        # ========= 2️⃣ 圓餅圖 =========
-        context['pie_chart_data'] = Chore.objects.get_completion_percentage(room)
-
+        # 3. 圓餅圖：呼叫新的個人統計方法
+        context['pie_chart_data'] = Chore.objects.get_my_completion_percentage(room, user)
         # ========= 3️⃣ 日曆資料（這裡才可以用 self / room） =========
         calendar_data = []
         today = timezone.now().date()
@@ -164,7 +163,8 @@ class ChoreCreateView(LoginRequiredMixin, CreateView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs['room'] = get_current_room(self.request) # 傳遞 room 參數給 form
+        kwargs['room'] = get_current_room(self.request)
+        kwargs['user'] = self.request.user # 傳給 Form 用於鎖定負責人
         return kwargs
 
 
@@ -251,7 +251,7 @@ class ChoreCompleteView(LoginRequiredMixin, View):
         chore.save()
         
         # 返回成功響應
-        return JsonResponse({'status': 'success', 'message': f'家務 "{chore.title}" 已標記為完成。'})
+        return JsonResponse({'status': 'success', 'message': f'家務 "{chore.title}" 已標記為完成，舊有積欠已一併清除。'})
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         return JsonResponse({'status': 'error', 'message': '僅接受 POST 請求。'}, status=405)

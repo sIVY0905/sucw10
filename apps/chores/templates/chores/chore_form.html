@@ -134,5 +134,46 @@
         typeSelect.addEventListener('change', updateUI);
         updateUI(); // 頁面加載後初始化一次
     });
+    function updateUI() {
+    const isPrivate = typeSelect.value === 'PRIVATE';
+    
+    if (isPrivate) {
+        // 視覺上讓負責人選單看起來不可改
+        assignedSelect.style.pointerEvents = "none";
+        assignedSelect.style.background = "#f3f4f6";
+        
+        // 強制選中自己 (currentUserId 是你在 template 埋的變數)
+        Array.from(assignedSelect.options).forEach(opt => {
+            opt.selected = (opt.value === currentUserId);
+        });
+        hintBox.innerHTML = '<span class="text-amber-600 font-bold"><i class="fas fa-lock mr-1"></i> 私人家事已鎖定為您的個人任務</span>';
+    } else {
+        assignedSelect.style.pointerEvents = "auto";
+        assignedSelect.style.background = "white";
+        hintBox.innerHTML = '<span class="text-indigo-600"><i class="fas fa-users mr-1"></i> 公共家事可指派多人輪值</span>';
+    }
+}
+function toggleFields() {
+    const isPrivate = typeSelect.value === 'PRIVATE';
+    
+    areaContainer.style.display = isPrivate ? 'block' : 'none';
+    privateAreaInput.required = isPrivate;
+
+    if (isPrivate) {
+        // 1. 自動勾選自己
+        Array.from(assignedSelect.options).forEach(opt => {
+            opt.selected = (opt.value === "{{ request.user.id }}");
+        });
+        // 2. 禁用選取 (視覺上鎖定)
+        assignedSelect.style.pointerEvents = "none";
+        assignedSelect.style.backgroundColor = "#f3f4f6";
+        document.getElementById('assigned-hint').innerHTML = '<span class="text-amber-600"><i class="fas fa-lock mr-1"></i> 私人家事已固定指派給您。</span>';
+    } else {
+        // 公共家事恢復正常
+        assignedSelect.style.pointerEvents = "auto";
+        assignedSelect.style.backgroundColor = "white";
+        document.getElementById('assigned-hint').innerHTML = '<span class="text-indigo-600"><i class="fas fa-users mr-1"></i> 公共家事可指派多人。</span>';
+    }
+}
 </script>
 {% endblock %}

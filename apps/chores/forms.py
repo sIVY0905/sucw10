@@ -33,30 +33,22 @@ class ChoreForm(forms.ModelForm):
         #將 user 存入 instance 變數，這樣 clean 方法才找得到
         self.user = user
         if room:
-            # 限制 assigned_to 選項為當前房號的成員 (解決你提到的指派給所有帳號問題)
+            # 鎖定選單內容僅限房內成員
             self.fields['assigned_to'].queryset = room.members.all()
-        
-        self.fields['private_area'].required = False
-        self.fields['assigned_to'].help_text = "選擇負責這項家務的所有成員。"
-        
+        # 如果是新增且類型預設是 PRIVATE，或編輯時是 PRIVATE
+        if self.instance.type == 'PRIVATE' or (not self.instance.pk and self.data.get('type') == 'PRIVATE'):
+            # 這裡不使用 disabled=True，因為 disabled 的欄位不會在 POST 送出資料
+            # 改在 clean 中強制覆蓋，並在 Template 用 CSS 鎖定
+            pass
         
     def clean(self):
         cleaned_data = super().clean()
         chore_type = cleaned_data.get('type')
         private_area = cleaned_data.get('private_area')
-        assigned_to = cleaned_data.get('assigned_to')
-        
-        # 驗證 1：PRIVATE 類型必須填寫區域
-        if chore_type == 'PRIVATE' and not private_area:
-            self.add_error('private_area', "私人/區域家事必須指定一個區域名稱。")
-
-        # 驗證 2：私人家事限定本人
-        if chore_type == 'PRIVATE' and assigned_to and self.user:
-            # assigned_to 是多選，如果裡面沒有包含當前用戶，報錯
-            if self.user not in assigned_to:
-                self.add_error('assigned_to', f"私人家事必須指派給您本人 ({self.user.username})。")
-            # 如果選了超過一個人，也報錯
-            if len(assigned_to) > 1:
-                self.add_error('assigned_to', "私人家事只能指派給單一成員（您本人）。")
-                
+        # 強制邏輯：如果是私人家事，負責人強行設為當前用戶
+        if chore_type == 'PRIVATE':
+            if not private_area:
+                self.add_error('private_area', "私人家事必須填寫區域。")
+            if self.user:
+                cleaned_data['assigned_to'] = [self.user]
         return cleaned_data

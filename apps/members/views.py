@@ -26,7 +26,7 @@ def get_current_room(request):
         return None
 
 class MemberListView(LoginRequiredMixin, ListView):
-    template_name = 'members/member_list.html'
+    template_name = 'rooms/room_members.html'
     context_object_name = 'members_data'
     
     def get_queryset(self):
@@ -34,10 +34,10 @@ class MemberListView(LoginRequiredMixin, ListView):
         
         if not self.room:
             # 如果沒有房間，返回空的 QuerySet
-            return settings.AUTH_USER_MODEL.objects.none()
+            return get_user_model().objects.none()
         # 獲取當前房間的所有成員 (使用我們在 rooms/models.py 中定義的反向查詢名稱 'joined_rooms')
         # 為了安全，使用 filter(rooms=self.room) 或 self.room.members.all()
-        return settings.AUTH_USER_MODEL.objects.filter(joined_rooms=self.room)
+        return get_user_model().objects.filter(joined_rooms=self.room)
         # # 獲取當前房號的所有成員
         # members = self.room.members.all()
         
@@ -91,7 +91,7 @@ class MemberDetailView(LoginRequiredMixin, DetailView):
         member_pk = self.kwargs.get('pk')
         # 獲取目標成員，並確保該成員在當前房間內
         target_member = get_object_or_404(
-            settings.AUTH_USER_MODEL.objects.filter(joined_rooms=self.room), 
+            get_user_model().objects.filter(joined_rooms=self.room), 
             pk=member_pk
         )
         return target_member

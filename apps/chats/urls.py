@@ -7,7 +7,8 @@ urlpatterns = [
     # 列表與新增文章
     path('', views.ChatListView.as_view(), name='list'), # ***View 名稱變更***
     path('new/', views.ArticleCreateView.as_view(), name='create'),
-    
+    path('<int:pk>/update/', views.ArticleUpdateView.as_view(), name='update'),
+    path('<int:pk>/delete/', views.ArticleDeleteView.as_view(),name='delete'),
     # 文章詳情與留言發布 (F-5.4)
     path('<int:pk>/', views.ChatDetailView.as_view(), name='detail'), # ***View 名稱變更***
     path('<int:pk>/reply/', views.ReplyCreateView.as_view(), name='reply'),

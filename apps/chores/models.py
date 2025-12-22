@@ -31,17 +31,38 @@ class Chore(models.Model):
     # 私人家務區域細分
     private_area = models.CharField(max_length=100, blank=True, null=True, verbose_name='私人家務區域')
 
+    # 建立日期 (作為輪替計算的基準點) 
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='建立時間')
     # 使用自定義管理器
     objects = ChoreManager() # 確保使用了修正後的 ChoreManager
 
     @property
     def next_due_date(self):
-        """計算下一次應完成的日期 (僅限 Python 內部使用，不可用於 ORM 查詢)"""
-        # 這裡應該直接調用 Manager 的方法以保持單一計算邏輯，但為了避免循環依賴，我們使用簡單的屬性計算
-        if self.frequency_days is None:
-            return None
-        return (self.last_completed + timedelta(days=self.frequency_days))
+        """計算下一次應完成的日期"""
+        return self.last_completed + timedelta(days=self.frequency_days)
 
+    # --- 新增：核心輪替邏輯 ---
+    def get_current_duty_user(self,at_date=None):
+        """
+        計算當前『理論上』輪到誰。
+        邏輯：根據 (今天 - 建立日期) 經過了幾個週期，來決定成員清單中的索引。
+        """
+        if at_date is None:
+            at_date = timezone.now().date()
+        members = self.assigned_to.all().order_by('id') # 固定排序確保輪替順序不變
+        count = members.count()
+        if count == 0:
+            return None
+        if self.type == 'PRIVATE':
+            return members.first() # 私人家事通常只有一個人
+
+        # 計算從建立到現在過了幾個頻率週期
+        days_elapsed = (at_date - self.created_at.date()).days
+        cycle_number = days_elapsed // self.frequency_days
+        
+        # 取得當前輪到的成員索引
+        index = cycle_number % count
+        return members[index]
     class Meta:
         verbose_name = '家務事項'
         verbose_name_plural = '家務事項'

@@ -1,0 +1,444 @@
+{% extends "core/base.html" %}
+
+{% block title %}房務管理 | 主頁{% endblock %}
+
+{% block content %}
+<style>
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    .red-dot { background-color: #ef4444; }
+    .green-dot { background-color: #22c55e; }
+    .grey-dot { background-color: #9ca3af; }
+</style>
+
+<div class="max-w-7xl mx-auto p-4 md:p-8">
+
+{% if no_room_assigned %}
+<div class="text-center p-10 bg-red-100 rounded-lg shadow-md">
+    <h2 class="text-2xl font-bold text-red-700">尚未加入房號</h2>
+    <p class="text-red-500 mt-2">請先前往成員介面新增或加入房號。</p>
+    <a href="/rooms/join/"
+       class="mt-4 inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+       前往加入
+    </a>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+<!-- ================= 日曆區 ================= -->
+<section class="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">家事頻率與標記</h2>
+
+    <!-- 月曆（桌機） -->
+    <div class="hidden lg:block">
+        <h3 class="text-lg font-semibold mb-2">月曆</h3>
+        <div class="flex items-center justify-between mb-2">
+            <button onclick="changeMonth(-1)"
+                    class="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300">
+                ◀ 上月
+            </button>
+        
+            <h3 id="calendar-title" class="text-lg font-semibold"></h3>
+        
+            <button onclick="changeMonth(1)"
+                    class="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300">
+                下月 ▶
+            </button>
+        </div>
+        
+        <div class="p-4 bg-indigo-50 rounded-lg border border-indigo-200 h-[400px] overflow-y-auto">
+            <div id="calendar-content-lg" class="grid grid-cols-7 gap-1 text-center"></div>
+        </div>
+    </div>
+
+    <!-- 週曆（手機） -->
+    <div class="block lg:hidden">
+        <h3 class="text-lg font-semibold mb-2">週曆</h3>
+        <div class="overflow-x-auto">
+            <div id="calendar-content-sm"
+                 class="flex space-x-2 p-2 bg-indigo-50 rounded-lg border border-indigo-200">
+            </div>
+        </div>
+    </div>
+
+    <p class="mt-4 text-sm text-gray-500">
+        <span class="inline-block w-3 h-3 rounded-full green-dot mr-1"></span>
+        今日家事
+        <span class="inline-block w-3 h-3 rounded-full red-dot ml-3 mr-1"></span>
+        過去未完成
+        <span class="inline-block w-3 h-3 rounded-full grey-dot ml-3 mr-1"></span>
+        未來家事
+    </p>
+    
+</section>
+
+{{ calendar_data|json_script:"calendar-data" }}
+
+<!-- ================= 右側 ================= -->
+<section class="lg:col-span-1 space-y-8">
+
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">今日與積欠事項</h2>
+    
+        <div class="space-y-4 max-h-96 overflow-y-auto scrollbar-hide pr-2">
+            <h3 id="today-count-text" class="text-lg font-semibold text-green-600 border-b pb-1">
+                今日事項 ({{ today_chores|length }})
+            </h3>
+            <div id="today-list-container" class="space-y-3">
+                {% for chore in today_chores %}
+                <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200 chore-item" data-chore-title="{{ chore.title }}">
+                    <div class="flex items-center space-x-3">
+                        <input type="checkbox" data-chore-id="{{ chore.id }}"
+                               class="form-checkbox h-5 w-5 text-green-600 rounded cursor-pointer btn-complete-ajax">
+                        <span class="text-gray-700 font-medium">
+                            {{ chore.title }} <span class="text-xs text-green-600">({{ chore.get_type_display }})</span>
+                        </span>
+                    </div>
+                    <span class="text-xs font-bold text-green-500">今天</span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 py-2 no-data-msg">今日無待辦事項！</p>
+                {% endfor %}
+            </div>
+    
+            <h3 id="overdue-count-text" class="text-lg font-semibold text-red-600 border-b pb-1 pt-4">
+                積欠事項 ({{ overdue_chores|length }})
+            </h3>
+            <div id="overdue-list-container" class="space-y-3">
+                {% for chore in overdue_chores %}
+                <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200 chore-item" data-chore-title="{{ chore.title }}">
+                    <div class="flex items-center space-x-3">
+                        <input type="checkbox" data-chore-id="{{ chore.id }}"
+                               class="form-checkbox h-5 w-5 text-red-600 rounded cursor-pointer btn-complete-ajax">
+                        <span class="text-red-700 font-bold">
+                            {{ chore.title }} <span class="text-xs opacity-75">({{ chore.get_type_display }})</span>
+                        </span>
+                    </div>
+                    <span class="px-2 py-1 bg-red-600 text-white text-[10px] rounded-full uppercase">逾期</span>
+                </div>
+                {% empty %}
+                <p class="text-gray-500 py-2 no-data-msg">沒有積欠的家務！</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+
+
+<!-- 留言板 -->
+<div class="bg-white p-6 rounded-xl shadow-lg">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">留言布告欄</h2>
+
+    <div class="space-y-4 max-h-72 overflow-y-auto scrollbar-hide">
+        {% for m in bulletin %}
+        <div class="p-3 bg-gray-100 rounded-lg hover:bg-gray-200 cursor-pointer"
+             onclick="showModal('{{ m.title }}', '{{ m.content }}')">
+            <p class="font-semibold truncate">{{ m.title }}</p>
+            <span class="text-sm text-gray-500">
+                作者 {{ m.author }}，{{ m.time_ago }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <a href="{% url 'chats:create' %}">
+        <button class="mt-4 w-full px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
+            發佈新留言
+        </button>
+    </a>
+</div>
+
+</section>
+</div>
+
+<!-- ================= Modal ================= -->
+<div id="modal-backdrop"
+     class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-xl shadow-2xl w-11/12 md:w-1/2 max-h-5/6 overflow-y-auto">
+        <h3 id="modal-title" class="text-xl font-bold mb-4"></h3>
+        <div id="modal-body" class="space-y-2 text-gray-600"></div>
+        <button onclick="hideModal()"
+                class="mt-6 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 float-right">
+            關閉
+        </button>
+    </div>
+</div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let currentYear;
+let currentMonth;    
+const CALENDAR_DATA = JSON.parse(
+    document.getElementById("calendar-data").textContent
+);
+
+/* ========== Modal ========== */
+function showModal(title, body) {
+    document.getElementById("modal-title").innerHTML = title;
+    document.getElementById("modal-body").innerHTML = body;
+    document.getElementById("modal-backdrop").classList.remove("hidden");
+}
+function hideModal() {
+    document.getElementById("modal-backdrop").classList.add("hidden");
+}
+
+/* ========== 月曆（桌機） ========== */
+function renderCalendarMonthly(id) {
+    const year = currentYear;
+    const month = currentMonth;
+    document.getElementById("calendar-title").textContent =
+    `${year} 年 ${month + 1} 月`;
+
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const todayStr = new Date().toLocaleDateString('sv-SE');
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const lastDate = new Date(year, month + 1, 0).getDate();
+
+    const events = {};
+    CALENDAR_DATA.forEach(e => {
+        if (!events[e.date]) events[e.date] = [];
+        events[e.date].push(e);
+    });
+
+    el.innerHTML = `
+        <div class="font-bold">日</div>
+        <div class="font-bold">一</div>
+        <div class="font-bold">二</div>
+        <div class="font-bold">三</div>
+        <div class="font-bold">四</div>
+        <div class="font-bold">五</div>
+        <div class="font-bold">六</div>
+    `;
+
+    for (let i = 0; i < firstDay; i++) {
+        el.innerHTML += `<div class="h-20 bg-gray-50/50"></div>`;
+    }
+
+    for (let d = 1; d <= lastDate; d++) {
+        const cur = new Date(year, month, d);
+        const dStr = cur.toLocaleDateString('sv-SE');
+        const list = events[dStr] || [];
+        const isToday = dStr === todayStr;
+
+        const body = list.length
+            ? list.map(e =>
+                `<div class="flex items-center space-x-1">
+                    <span class="w-2 h-2 rounded-full ${e.color}-dot"></span>
+                    <span class="text-xs">${e.title}</span>
+                </div>`
+              ).join("")
+            : "";
+
+            el.innerHTML += `
+                <div class="p-1 h-20 border rounded-md cursor-pointer
+                    ${isToday ? "bg-indigo-50 border-indigo-400" : "bg-white hover:bg-gray-50"}"
+                    data-title="${dStr}" data-body="${encodeURIComponent(body)}">
+                    <div class="text-xs font-bold ${isToday ? "text-indigo-600" : "text-gray-400"}">
+                        ${d}
+                    </div>
+                    <div class="mt-1 overflow-hidden space-y-0.5">
+                        ${body}
+                    </div>
+                </div>
+            `;
+
+    }
+}
+
+/* ========== 週曆（手機） ========== */
+function renderCalendarWeekly(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const today = new Date();
+    const events = {};
+
+    CALENDAR_DATA.forEach(e => {
+        if (!events[e.date]) events[e.date] = [];
+        events[e.date].push(e);
+    });
+
+    for (let i = 0; i < 7; i++) {
+        const cur = new Date(today);
+        cur.setDate(today.getDate() + i);
+        const dStr = cur.toLocaleDateString('sv-SE');
+        const list = events[dStr] || [];
+
+        let color = "grey";
+        if (list.some(e => e.color === "red")) color = "red";
+        else if (list.some(e => e.color === "green")) color = "green";
+
+        el.innerHTML += `
+            <div class="flex-shrink-0 w-24 p-2 rounded-lg border text-center
+                 ${i === 0 ? "bg-indigo-200 border-indigo-500" : "bg-white"}">
+                <p class="text-sm">${cur.toLocaleDateString("zh-TW",{weekday:"short"})}</p>
+                <p class="text-xl font-bold">${cur.getDate()}</p>
+                <span class="inline-block w-3 h-3 rounded-full ${color}-dot"></span>
+            </div>
+        `;
+    }
+}
+document.querySelectorAll('[data-title]').forEach(el => {
+    el.addEventListener('click', function() {
+        const title = this.dataset.title;
+        const body = decodeURIComponent(this.dataset.body);
+        showModal(title, body);
+    });
+});
+document.querySelectorAll('.btn-complete').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        if (this.checked) {
+            const choreId = this.dataset.choreId;
+            const container = this.closest('.flex'); // 找到外層容器
+
+            // 發送 AJAX 請求
+            fetch(`/chores/complete/${choreId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}', // Django 安全機制
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // 成功動畫：漸隱並縮小後移除
+                    container.style.transition = 'all 0.5s ease';
+                    container.style.opacity = '0';
+                    container.style.transform = 'translateX(20px)';
+                    
+                    setTimeout(() => {
+                        container.remove();
+                        // 這裡可以選擇性更新計數器文字
+                        updateCounter();
+                    }, 500);
+                } else {
+                    alert('更新失敗：' + data.message);
+                    this.checked = false; // 失敗則退回勾選
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.checked = false;
+            });
+        }
+    });
+});
+document.querySelectorAll('.btn-complete-ajax').forEach(checkbox => {
+        checkbox.addEventListener('change', async function() {
+            if (!this.checked) return;
+
+            const choreId = this.dataset.choreId;
+            const itemContainer = this.closest('.flex'); // 找到整列家務
+
+            try {
+                // 1. 發送完成請求
+                const response = await fetch(`/chores/${choreId}/toggle/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    }
+                });
+
+                if (response.ok) {
+                    // 2. ⭐ 消失動畫
+                    itemContainer.style.opacity = '0';
+                    itemContainer.style.transform = 'translateX(20px)';
+                    itemContainer.style.transition = 'all 0.4s ease';
+
+                    setTimeout(() => {
+                        itemContainer.remove();
+                        updateTextCounters(); // 更新 (1) 這種數量文字
+                    }, 400);
+
+                    // 3. ⭐ 同步更新圓餅圖 (呼叫你在 chore_list 定義過的 API)
+                    if (typeof refreshChoreStats === "function") {
+                        refreshChoreStats();
+                    }
+                }
+            } catch (error) {
+                console.error("更新失敗", error);
+                this.checked = false;
+            }
+        });
+    });
+
+    // 動態更新計數器標題
+    function updateTextCounters() {
+        const todayCount = document.querySelectorAll('#today-list-container .flex').length;
+        const overdueCount = document.querySelectorAll('#overdue-list-container .flex').length;
+        
+        const todayTitle = document.getElementById('today-count-text');
+        const overdueTitle = document.getElementById('overdue-count-text');
+
+        if (todayTitle) todayTitle.innerText = `今日事項 (${todayCount})`;
+        if (overdueTitle) overdueTitle.innerText = `積欠事項 (${overdueCount})`;
+    }
+
+// 簡單的計數器更新邏輯
+function updateCounter() {
+    // 這裡可以抓取 HTML 上的 ({{ today_chores|length }}) 並減 1
+    // 或者乾脆讓使用者看到消失就好，因為不刷頁面的話，計數器通常需要手動維護
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const now = new Date();
+    currentYear = now.getFullYear();
+    currentMonth = now.getMonth();
+
+    renderCalendarMonthly("calendar-content-lg");
+    renderCalendarWeekly("calendar-content-sm");
+});
+function changeMonth(delta) {
+    currentMonth += delta;
+
+    if (currentMonth < 0) {
+        currentMonth = 11;
+        currentYear--;
+    } else if (currentMonth > 11) {
+        currentMonth = 0;
+        currentYear++;
+    }
+
+    renderCalendarMonthly("calendar-content-lg");
+}
+
+document.addEventListener('change', function(e) {
+    if (e.target.matches('input[data-chore-id]')) {
+        const choreId = e.target.dataset.choreId;
+        const isChecked = e.target.checked;
+
+        if (isChecked) {
+            // 發送 AJAX 到後端完成家事
+            fetch(`/chores/complete/${choreId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // 簡單處理：完成後直接淡出並刪除該行，或重新整理頁面
+                    e.target.closest('.flex').style.opacity = '0.5';
+                    e.target.disabled = true;
+                    // 可選：location.reload(); // 重新整理以更新圓餅圖和日曆
+                } else {
+                    alert(data.message);
+                    e.target.checked = false;
+                }
+            });
+        }
+    }
+});
+
+</script>
+{% endblock %}
